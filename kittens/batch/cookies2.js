@@ -20,10 +20,9 @@ var batchingStarted = false;
 const hackScriptCost = 1.75;
 const prepScriptCost = 2.30;
 const workerDebug = false; 
-var stage = 0; 
 /** @param {import("../../..").NS} ns */
 export async function main(ns) {
-    ns.exec("/kittens/shiny.js", "home"); //lets get those shiny shinies
+    // ns.exec("/kittens/shiny.js", "home"); //lets get those shiny shinies
 
     // let servers = ["home"] 
     //     servers = servers.concat(ns.read("/lib/serversNuked.js").split(","));
@@ -76,9 +75,8 @@ export async function main(ns) {
             let currHackLevel = ns.getHackingLevel();
             //first we need to prep the server
             let serverStats = getServerStats(ns, server, targetServer);//grab stats
-            let threadsAvailable = Math.floor(serverStats.availableRam / hackScriptCost);
-            let delays = getDelays(ns, targetServer);
-            if (server == "home") Math.floor(threadsAvailable * .90);; 
+            let threadsAvailable = Math.floor((serverStats.availableRam/2) / hackScriptCost);
+            if(server == "home" ) threadsAvailable = threadsAvailable - 20; 
             // if(batchTrack[server] != undefined && ns.isRunning("/kittens/batch/wb.js", server, targetServer, batchTrack[server], "batch")){
             //     await ns.sleep(5); 
             //     continue; 
@@ -98,7 +96,7 @@ export async function main(ns) {
                 await ns.sleep(1000); // we leveld up so we want to wait so there is no desyncs.
                 hackLevel = currHackLevel; 
                 minThreads = getMinimumThreadsReq(ns, targetServer); 
-                if (servers.length < 26 && hackLevel > 50) ns.exec("/kittens/scan.js", "home") 
+                if (servers.length < 26 && hackLevel > 50) exec("/kittens/scan.js", "home") 
                 // if(hackLevel == 500){
                 //     ns.spawn("/scan/scan.js")
                 // } 
@@ -114,24 +112,20 @@ export async function main(ns) {
                 let threadsAvailable = Math.floor(serverStats.availableRam / prepScriptCost);
                 if (server == "home") threadsAvailable = Math.floor(threadsAvailable*.90); 
                 
-                initiatePrepJob(ns, threadsAvailable, server, targetServer, serverStats, delays);
                 // let tThreads = Math.floor(threadsAvailable/3);
-                // ns.exec("/kittens/batch/prep.js", server, threadsAvailable, targetServer, prepIdx);
+                ns.exec("/kittens/batch/prep.js", server, threadsAvailable, targetServer, prepIdx);
                 // ns.exec("/kittens/batch/gb.js", server, tThreads, targetServer, prepIdx);
                 // ns.exec("/kittens/batch/wb.js", server, tThreads, targetServer, prepIdx + .1);
                 isPrepping = true; 
-                ns.tprint("preppingFirst")
+                // ns.tprint("preppingFirst")
             //may need a security one here. but so far security has remained on lock once started. 
             //need to develop a way to fix that. 
             // } else if (batchingStarted && (serverStats.money > (serverStats.maxMoney * hackPercent + serverStats.maxMoney * .1) || serverStats.security > ns.getServerMinSecurityLevel(targetServer) + (((hackPercent / ns.hackAnalyze(targetServer)) * .002) + 1 ))){
             } else if (batchingStarted && (serverStats.money > (serverStats.maxMoney * hackPercent + serverStats.maxMoney * .1))){
                 batchingStarted = false;
                 let threadsAvailable = Math.floor(serverStats.availableRam / prepScriptCost);
-                if (server == "home") threadsAvailable = Math.floor(threadsAvailable * .90); 
-                
-                initiatePrepJob(ns, threadsAvailable, server, targetServer, serverStats, delays);
-
-                // ns.exec("/kittens/batch/prep.js", server, threadsAvailable, targetServer, prepIdx);
+                if (server == "home") threadsAvailable = Math.floor(threadsAvailable*.90; 
+                ns.exec("/kittens/batch/prep.js", server, threadsAvailable, targetServer, prepIdx);
                 isPrepping = true;  
                 ns.tprint("preppingAgain")
                 ns.tprint(ns.getServerSecurityLevel(targetServer));
@@ -139,6 +133,7 @@ export async function main(ns) {
             } else {
                 //lets start batching baby
                 let threadAllocation = allocateThreads(ns, threadsAvailable, minThreads, targetServer);
+                let delays = getDelays(ns, targetServer);
                 let threads = 1;
                 let delay = 0;
                 batchingStarted = true; 
@@ -147,9 +142,9 @@ export async function main(ns) {
                     //kill all scripts regarding prep. 
                     for(let server of servers){
                         // ns.kill("/kittens/batch/prep.js", server, targetServer); 
-                        ns.killall(server, true)
+                        // ns.killall(server, true)
                         //rerun shiny
-                        if(server == "home") ns.exec("/kittens/shiny.js", "home");
+                        // if(server == "home") ns.exec("/kittens/shiny.js", "home");
                     }
                     isPrepping = false; 
                     prepIdx = 1; 
@@ -241,7 +236,7 @@ function allocateThreads(ns, threads, minThreads, targetServer) {
         moneyLoss = maxMoney * hackLossFactor;
         moneyLeft = maxMoney - moneyLoss;  
 
-        grow = Math.ceil(ns.growthAnalyze(targetServer, maxMoney / moneyLeft)*1.4);
+        grow = Math.ceil(ns.growthAnalyze(targetServer, maxMoney / moneyLeft)*1.2);
         growTotalCost = growCost * grow;
 
         weaken2 = Math.ceil((growTotalCost) / weakenCost)
@@ -308,50 +303,17 @@ function getMinimumThreadsReq(ns, targetServer){
 
 function getTarget(ns, currentTarget, hackLevel){
     let newTarget = currentTarget; 
-    let hamRam = 0; 
-    if(ns.getPurchasedServers().length > 24){
-        hamRam = ns.getServerMaxRam("hamster-23")        
-    } else {
-        hamRam = 0; 
-    }
-    if (hackLevel > 1200 && ns.hasRootAccess("alpha-ent") && hamRam > 2000){
-        newTarget = "alpha-ent";
+    let hamRam = ns.getServerMaxRam("hamster-23")
+    if (hackLevel > 600 && ns.hasRootAccess("rho-construction") && hamRam > 4000){
+        newTarget = "rho-construction";
         if(hamRam){
             hackPercent = 0.95
         }
     } 
-    if (hackLevel > 2200 && ns.hasRootAccess("nwo") && hamRam > 1000000) {
-        newTarget = "nwo";
-        hackPercent = 0.95
-    }
+    if (hackLevel > 1800 && ns.hasRootAccess("nwo") && hamRam > 1000000) newTarget = "nwo";
 
     if(newTarget != currentTarget){
         batchingStarted = false; //need to reset this so proper prepping happens
     }
     return newTarget; 
-}
-
-function initiatePrepJob(ns, threadsAvailable, server, targetServer, serverStats, delays){
-    let security = serverStats.security; 
-    let wThreads1 = 0; 
-    while(security > 0 && wThreads1 < threadsAvailable){
-        wThreads1++; 
-        security = security - 0.05; 
-    }
-    ns.exec("/kittens/batch/wb.js", server, wThreads1, targetServer, 0, "prepw-" + prepIdx, workerDebug);
-
-    let gThreadsNeeded = 0; 
-    if(serverStats.money > 0){
-        let gThreadsNeeded = Math.ceil(ns.growthAnalyze(targetServer, (ns.getServerMaxMoney(targetServer) / serverStats.money)));
-    } 
-    let gThreads = 0; 
-    while (gThreads < gThreadsNeeded && wThreads1 + gThreads < threadsAvailable) {
-        gThreads++;
-    }
-    if(gThreads > 0) ns.exec("/kittens/batch/gb.js", server, gThreads, targetServer, delays.growDelay, "prepg-" + prepIdx, workerDebug);
-    let wThreads2 = threadsAvailable - gThreads - wThreads1;
-    if(wThreads2 > 0){
-        ns.exec("/kittens/batch/wb.js", server, wThreads2, targetServer, delays.weakenDelay2, "prepw2-" + prepIdx, workerDebug);
-    }
-    
 }
