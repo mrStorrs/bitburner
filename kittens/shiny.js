@@ -25,6 +25,8 @@ export async function main(ns) {
     var ram = ns.getServerMaxRam(servers[0]);
     // var moneyLimit = 1000000000000; //trillion 
     var moneyLimit = 1000000; //trillion 
+    // var moneyLimit = 10000000000000000000000000000000000000000; //trillion 
+    var ramlimit = 1050000; //trillion 
     let serverRam = 0; 
     for (let i = 1; i < servers.length; i++) {
         let server = servers[i];
@@ -44,7 +46,7 @@ export async function main(ns) {
     // Infinite loop that continously hacks/grows/weakens the target server
     while (true) {
         let server = servers[nextServerUpgIdx];
-        if (ns.getServerMoneyAvailable("home") - ns.getPurchasedServerUpgradeCost(server, ram) > moneyLimit) {
+        if (ns.getServerMoneyAvailable("home") - ns.getPurchasedServerUpgradeCost(server, ram) > moneyLimit && ns.getServerMaxRam(server) < ramLimit) {
             ns.print("upgrading: " + server + " to ram: " + ram);
             ns.upgradePurchasedServer(server, ram);
             nextServerUpgIdx++;
