@@ -21,8 +21,8 @@ export async function main(ns) {
         // await ns.sleep(5);
     }
     ns.print("best target is: " + bestTarget)
-    ns.write(serverTargetFile, bestTarget, "w")
-    ns.run("/kittens/rampage.js")
+    await ns.write(serverTargetFile, bestTarget, "w")
+    ns.run("/kittens/zombie.js")
 }
 
 function weight(ns, server) {

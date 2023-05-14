@@ -6,7 +6,7 @@ var serversFile = "/lib/servers.js"
 var serversIndFile = "/lib/serversInd.js"
 
 export async function main(ns) {
-    ns.write(serversIndFile, "home", "w") //clear serversInd for fresh run. 
+    await ns.write(serversIndFile, "home", "w") //clear serversInd for fresh run. 
     let servers = ns.read(serversFile).split("%")
     let printedNodes = ["home"];
     ns.tail();
@@ -21,9 +21,13 @@ export async function main(ns) {
             if (!printedNodes.includes(node)) {
                 ns.write(serversIndFile, "," + node, "a") //add initial connections
                 ns.print(node);
+                ns.getServerMaxMoney(node);
                 printedNodes.push(node);
+                await ns.sleep(50)
             }
         }
     }
-    ns.run("/scan/scanNuked.js") 
+    ns.print(printedNodes); 
+    await ns.sleep(50)
+    ns.run("/kittens/rampage.js") 
 }

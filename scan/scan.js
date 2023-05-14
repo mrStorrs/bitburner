@@ -21,10 +21,11 @@ export async function main(ns) {
     for (let orgServer of orgServers) {
         ns.print(orgServer);
     }
+    await ns.sleep(50);
     ns.run("/scan/scanInd.js")
 }
 
-function scanServers(ns, localServers) {
+async function scanServers(ns, localServers) {
     if (localServers.length > 0) {
         for (let server of localServers) {
             // ns.write("/kittens/scanner.js", server + "," , "a") //add server 

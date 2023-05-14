@@ -21,11 +21,11 @@ export async function main(ns) {
         // await ns.sleep(50);
     }
 
-    if(ns.getPurchasedServers().length > 24){
-        ns.kill("/kittens/batch/cookies.js")
-        await ns.sleep(1000);
-        ns.run("/kittens/batch/cookies.js")
-    }
+    // if(ns.getPurchasedServers().length > 24){
+    //     ns.kill("/kittens/batch/cookies.js")
+    await ns.sleep(100);
+    ns.run("/scan/scanNuked.js")
+    // }
 
 
 }

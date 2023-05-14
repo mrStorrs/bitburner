@@ -6,12 +6,12 @@
 // - need to add scan..rampage..infect stage
 // - need to automate buying tor router and purchase from darkweb
 // - add run command for shiny
-var spacer = 20;
+var spacer = 30;
 var scripts = ["/kittens/batch/hb.js", "/kittens/batch/wb.js", "/kittens/batch/gb.js", "/kittens/batch/wb.js"]
 //make this dynamically change based on how much ram
 //purchased servers have. this could be done by determinging how much ram
 //it takes to do 
-var hackPercent = .50
+var hackPercent = 0.80
 var batchIdx = 1
 var prepIdx = 1; 
 var isPrepping = false; 
@@ -21,19 +21,26 @@ const hackScriptCost = 1.75;
 const prepScriptCost = 2.30;
 const workerDebug = false; 
 var stage = 0; 
+var targetServer = "n00dles";
+
 /** @param {import("../../..").NS} ns */
 export async function main(ns) {
     ns.exec("/kittens/shiny.js", "home"); //lets get those shiny shinies
+    await ns.sleep(10000); //delay while scans run so that it doesn't overlap with the read. 
+    const indServers = ns.read("/lib/serversInd.js").split(",")
+
 
     // let servers = ["home"] 
     //     servers = servers.concat(ns.read("/lib/serversNuked.js").split(","));
 
-    // var targetServer = ns.read("/lib/serversTarget.js")
+    // var bestTarget = ns.read("/lib/serversTarget.js")
     hackLevel = ns.getHackingLevel();
 
-    //temp. 
-    var targetServer = "n00dles";
-    targetServer = getTarget(ns, targetServer, hackLevel);
+    
+    // ns.exec("/scan/scanTarget.js", "home")
+
+    // let bestT = getBestTarget(ns, indServers, hackLevel)
+    targetServer = getTarget(ns, "home", "n00dles",  hackLevel, indServers);
     // if(hackLevel < 600) targetServer = "n00dles" 
     // else if(ns.hasRootAccess("the-hub") && ns.getServerMaxRam("hamster-23") > 4000) targetServer = "the-hub"
     // else if (hackLevel > 1800 && ns.hasRootAccess("nwo") && ns.getServerMaxRam("hamster-23") > 1000000) targetServer = "nwo";
@@ -47,7 +54,6 @@ export async function main(ns) {
     //we could create a function that only allows batches that encompass the whole money %
     //to be placed. This is only needed if there is a bottleneck of servers needing batches
     var minThreads = getMinimumThreadsReq(ns, targetServer);
-
     // const servers = ["home", ".hamster"]; 
     // const server = "home";
     // const targetServer = "n00dles"
@@ -89,22 +95,28 @@ export async function main(ns) {
                 tMinThreads = minThreads * 2
             }
 
-            if (threadsAvailable <= tMinThreads) { //cant batch with less than 4 threads. 
+            if (threadsAvailable < tMinThreads) { //cant batch with less than 4 threads. 
                 await ns.sleep(1);
                 continue;
             };
 
             if (currHackLevel > hackLevel){
                 await ns.sleep(1000); // we leveld up so we want to wait so there is no desyncs.
-                hackLevel = currHackLevel; 
-                minThreads = getMinimumThreadsReq(ns, targetServer); 
-                if (servers.length < 26 && hackLevel > 50) ns.exec("/kittens/scan.js", "home") 
-                // if(hackLevel == 500){
-                //     ns.spawn("/scan/scan.js")
-                // } 
+                // If we have formulas, we can refine the weight calculation
+                if (ns.fileExists('Formulas.exe')) {
+                    let pl = ns.getPlayer();
+                    let so = ns.getServer(server);
+                    let wTimeCur = ns.formulas.hacking.weakenTime(so, pl)
+                    pl.skills.hacking = hackLevel; //lower level to the past level 
+                    let wTimePast = ns.formulas.hacking.weakenTime(so, pl)
+                    let levelDelay = wTimePast - wTimeCur;
+                    ns.tprint(levelDelay)
+                    await ns.sleep(levelDelay); 
+                }
 
                 //need to reset pretpping if one of these conditions is hit. 
-                targetServer = getTarget(ns, targetServer, hackLevel)
+                hackLevel = currHackLevel; 
+                targetServer = getTarget(ns, server, targetServer, hackLevel, indServers);
             }
             //add a kill all funciton that kill all runing prep steps upon reaching goal. 
             //eventually prep steps could be to only run the proper prep step items. 
@@ -120,7 +132,7 @@ export async function main(ns) {
                 // ns.exec("/kittens/batch/gb.js", server, tThreads, targetServer, prepIdx);
                 // ns.exec("/kittens/batch/wb.js", server, tThreads, targetServer, prepIdx + .1);
                 isPrepping = true; 
-                ns.tprint("preppingFirst")
+                // ns.tprint("preppingFirst")
             //may need a security one here. but so far security has remained on lock once started. 
             //need to develop a way to fix that. 
             // } else if (batchingStarted && (serverStats.money > (serverStats.maxMoney * hackPercent + serverStats.maxMoney * .1) || serverStats.security > ns.getServerMinSecurityLevel(targetServer) + (((hackPercent / ns.hackAnalyze(targetServer)) * .002) + 1 ))){
@@ -181,10 +193,11 @@ export async function main(ns) {
                     ns.exec(script, server, threads, targetServer, delay, "batch-" + batchIdx, workerDebug);
                 }
                 ns.print("Starting batch: " + batchIdx + " on server: " + server);
+                await ns.sleep(1); 
                 batchIdx++; 
                 // await ns.sleep(delays.batchDelay); //going to sleep for the last set delay which 
             }
-            await ns.sleep(spacer * 4.05); //techincally i think this could be * 4 but this will give us some extra space. 
+            await ns.sleep(spacer * 5); //techincally i think this could be * 4 but this will give us some extra space. 
         }
         if(isPrepping) prepIdx++; 
     }
@@ -241,7 +254,10 @@ function allocateThreads(ns, threads, minThreads, targetServer) {
         moneyLoss = maxMoney * hackLossFactor;
         moneyLeft = maxMoney - moneyLoss;  
 
-        grow = Math.ceil(ns.growthAnalyze(targetServer, maxMoney / moneyLeft)*1.4);
+        // ns.tprint(moneyLeft)
+        // ns.tprint(moneyLoss)
+        // ns.tprint(targetServer)
+        grow = Math.ceil(ns.growthAnalyze(targetServer, maxMoney / moneyLeft)*2);
         growTotalCost = growCost * grow;
 
         weaken2 = Math.ceil((growTotalCost) / weakenCost)
@@ -306,43 +322,73 @@ function getMinimumThreadsReq(ns, targetServer){
     return 3 + grow; 
 }
 
-function getTarget(ns, currentTarget, hackLevel){
+/** @param {import("../..").NS} ns */
+function getTarget(ns, callServer, currentTarget, hackLevel, indServers){
     let newTarget = currentTarget; 
+    // ns.tprint(indServers);
+    let bestT = getBestTarget(ns, callServer, indServers)
+    // ns.tprint(bestT); 
+
     let hamRam = 0; 
     if(ns.getPurchasedServers().length > 24){
         hamRam = ns.getServerMaxRam("hamster-23")        
     } else {
         hamRam = 0; 
     }
-    if (hackLevel > 1200 && ns.hasRootAccess("alpha-ent") && hamRam > 2000){
-        newTarget = "alpha-ent";
-        if(hamRam){
-            hackPercent = 0.95
+
+    if (hackLevel > 3000 && hamRam > 500000 && stage < 3) {
+        // ns.exec("/scan/scanTarget.js", "home")
+        // let bestT = ns.read("/lib/serversTarget.js")
+        if (currentTarget != bestT){
+            if (ns.hasRootAccess(bestT) && ns.getServerMaxMoney(bestT) > ns.getServerMaxMoney(currentTarget)){
+                newTarget = bestT;
+                stage = 3;
+                ns.tprint("enterign stage: " + stage + " target: " + newTarget)
+                batchingStarted = false;
+                return newTarget; 
+            } 
+        }
+    } else if (hackLevel > 2000 && hamRam > 4000 && stage < 2) {
+        // ns.exec("/scan/scanTarget.js", "home")
+        // let bestT = ns.read("/lib/serversTarget.js")
+        if (ns.hasRootAccess(bestT) && ns.getServerMaxMoney(bestT) > ns.getServerMaxMoney(currentTarget)) {
+            if (ns.hasRootAccess(bestT)) {
+                newTarget = bestT;
+                stage = 2;
+                ns.tprint("enterign stage: " + stage + " target: " + newTarget)
+                batchingStarted = false;
+                return newTarget; 
+            }
+        }
+    } else if (hackLevel > 1000 &&  hamRam > 1000 && stage < 1  ){
+        // ns.exec("/scan/scanTarget.js", "home")
+        // let bestT = ns.read("/lib/serversTarget.js")
+        if (ns.hasRootAccess(bestT) && ns.getServerMaxMoney(bestT) > ns.getServerMaxMoney(currentTarget)) {
+            if (ns.hasRootAccess(bestT)) {
+                newTarget = bestT;
+                stage = 1;
+                ns.tprint("enterign stage: " + stage + " target: " + newTarget)
+                batchingStarted = false;
+                return newTarget; 
+            }
         }
     } 
-    if (hackLevel > 2200 && ns.hasRootAccess("nwo") && hamRam > 1000000) {
-        newTarget = "nwo";
-        hackPercent = 0.95
-    }
-
-    if(newTarget != currentTarget){
-        batchingStarted = false; //need to reset this so proper prepping happens
-    }
-    return newTarget; 
+    return currentTarget; 
 }
 
 function initiatePrepJob(ns, threadsAvailable, server, targetServer, serverStats, delays){
     let security = serverStats.security; 
     let wThreads1 = 0; 
+
     while(security > 0 && wThreads1 < threadsAvailable){
         wThreads1++; 
         security = security - 0.05; 
     }
-    ns.exec("/kittens/batch/wb.js", server, wThreads1, targetServer, 0, "prepw-" + prepIdx, workerDebug);
+    if(wThreads1 > 0) ns.exec("/kittens/batch/wb.js", server, wThreads1, targetServer, 0, "prepw-" + prepIdx, workerDebug);
 
     let gThreadsNeeded = 0; 
     if(serverStats.money > 0){
-        let gThreadsNeeded = Math.ceil(ns.growthAnalyze(targetServer, (ns.getServerMaxMoney(targetServer) / serverStats.money)));
+        gThreadsNeeded = Math.ceil(ns.growthAnalyze(targetServer, (ns.getServerMaxMoney(targetServer) / serverStats.money + 1) ));
     } 
     let gThreads = 0; 
     while (gThreads < gThreadsNeeded && wThreads1 + gThreads < threadsAvailable) {
@@ -352,6 +398,62 @@ function initiatePrepJob(ns, threadsAvailable, server, targetServer, serverStats
     let wThreads2 = threadsAvailable - gThreads - wThreads1;
     if(wThreads2 > 0){
         ns.exec("/kittens/batch/wb.js", server, wThreads2, targetServer, delays.weakenDelay2, "prepw2-" + prepIdx, workerDebug);
+    }   
+    return; 
+}
+
+function getBestTarget(ns, callServer, indServers){
+    let servers = indServers
+    let bestTarget = "n00dles"
+    let highestWeight = 0;
+    // ns.tail();
+
+    //find best target. 
+    for (let server of servers) {
+        // ns.tprint(server); 
+        if (!server) continue;
+        if (server == "home") continue; // we don't want to target ourselves. 
+        // ns.getServerMaxMoney(server) //just want to see how much mula on this thing
+        let w = weight(ns, server);
+        if (w > highestWeight) {
+            highestWeight = w;
+            bestTarget = server;
+            // ns.print("new best target: " + bestTarget)
+        }
+        // await ns.sleep(5);
     }
-    
+    ns.tprint("best target is: " + bestTarget)
+    // ns.write(serverTargetFile, bestTarget, "w")
+    if(callServer = "home"){
+        ns.exec("/kittens/rampage.js", callServer);
+    }
+    return bestTarget; 
+
+    function weight(ns, server) {
+        if (!ns.hasRootAccess(server)) return 0; // no root access this server sucks.
+        let player = ns.getPlayer();
+        let so = ns.getServer(server);
+
+        // Set security to minimum on the server object (for Formula.exe functions)
+        so.hackDifficulty = so.minDifficulty;
+
+        // We cannot hack a server that has more than our hacking skill so these have no value
+        if (so.requiredHackingSkill > player.skills.hacking) return 0;
+
+        // Default pre-Formulas.exe weight. minDifficulty directly affects times, so it substitutes for min security times
+        let weight = so.moneyMax / so.minDifficulty;
+
+        // If we have formulas, we can refine the weight calculation
+        if (ns.fileExists('Formulas.exe')) {
+            // We use weakenTime instead of minDifficulty since we got access to it, 
+            // and we add hackChance to the mix (pre-formulas.exe hack chance formula is based on current security, which is useless)
+            weight = so.moneyMax / ns.formulas.hacking.weakenTime(so, player) * ns.formulas.hacking.hackChance(so, player);
+        }
+        else
+            // If we do not have formulas, we can't properly factor in hackchance, so we lower the hacking level tolerance by half
+            if (so.requiredHackingSkill > player.skills.hacking / 2)
+                return 0;
+
+        return weight;
+    }
 }
