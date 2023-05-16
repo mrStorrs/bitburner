@@ -2,7 +2,7 @@
  * Batcher attempt 1
 */
 
-var spacer = 25;
+var spacer = 100;
 var scripts = ["/kittens/batch/hb.js", "/kittens/batch/wb.js", "/kittens/batch/gb.js", "/kittens/batch/wb.js"]
 var hackPercent = 0.85
 var batchIdx = 1
@@ -33,9 +33,13 @@ const GROW_TIME_PORT = 4;
 
 //items for lower cpu comp
 const lowPowerMode = false;
-
+import { getGlobal } from '/bb-vue/lib.js'
 /** @param {import("./..").NS} ns */
 export async function main(ns) {
+    let bus = getGlobal('testBus')
+    // if (!bus) {
+    //     throw new Error('Run the asciichart-ui.js script first!')
+    // }
 
     let servers = ["home"]
         servers = servers.concat(ns.getPurchasedServers()); // get just our purchased servers.      
@@ -57,6 +61,7 @@ export async function main(ns) {
     //to be placed. This is only needed if there is a bottleneck of servers needing batches
     // var minThreads = getMinimumThreadsReq(ns, targetServer);
     var minThreads = 4; //there is a fancy funciton for this. but for all i have seen this works fine. 
+    if(!lowPowerMode)minThreads *= 4; 
     ns.tail();
     ns.disableLog("ALL");
     // ns.enableLog("exec")
@@ -213,7 +218,8 @@ export async function main(ns) {
                     ns.exec(script, server, threads, targetServer, delay, "batch-" + batchIdx, workerDebug, 
                             (ns.getServerMaxMoney(targetServer) * hackPercent));
                 }
-                ns.print("Starting batch: " + batchIdx + " on server: " + server);
+                // ns.print("Starting batch: " + batchIdx + " on server: " + server);
+                bus.emit('testEmitter', { value: "batchDeployed"});
                 batchIdx++;
                 // await ns.sleep(delays.batchDelay); //going to sleep for the last set delay which 
             }
@@ -277,7 +283,7 @@ function allocateThreads(ns, threads, minThreads, targetServer) {
         // ns.tprint(moneyLoss)
         // ns.tprint(targetServer)
         try{
-            grow = Math.ceil(ns.growthAnalyze(targetServer, maxMoney / moneyLeft)*5);
+            grow = Math.ceil(ns.growthAnalyze(targetServer, maxMoney / moneyLeft)*1.5);
             // grow = Math.ceil((ns.growthAnalyze(targetServer, (maxMoney/bnHackScriptMultiplier) / (moneyLeft*bnHackScriptMultiplier)) / bnHackScriptMultiplier));
         } catch {grow = 1}    
         // grow = Math.ceil(((ns.growthAnalyze(targetServer, maxMoney / moneyLeft)) / bnHackScriptMultiplier) * 1.5);
@@ -308,6 +314,8 @@ function getDelays(ns, targetServer) {
     let weakenTime = ns.getWeakenTime(targetServer);
     let growTime = ns.getGrowTime(targetServer);
     let hackTime = ns.getHackTime(targetServer);
+
+    ns.writePort(HACK_TIME_PORT, hackTime)
 
     let delays = {
         hackDelay: weakenTime - spacer - hackTime,
