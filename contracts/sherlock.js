@@ -3,7 +3,7 @@ var solution;
 /** @param {import("../../..").NS} ns */
 export async function main(ns) {
     ns.tail();
-    ns.codingcontract.createDummyContract("Array Jumping Game");
+    // ns.codingcontract.createDummyContract("Array Jumping Game");
     // ns.codingcontract.attempt(maxSubArraySum(ns.codingcontract.getData("contract-827671.cct")), "contract-827671.cct")
     const servers = await ns.read("/lib/serversInd.js").split(",");
 
