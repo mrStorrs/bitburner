@@ -172,7 +172,7 @@ export async function main(ns) {
                 ns.tprint("preppingAgain")
                 ns.tprint(ns.getServerSecurityLevel(targetServer));
                 ns.tprint(ns.getServerMoneyAvailable(targetServer));
-            } else {
+            } else if (!prepStarted[targetServer]){
                 //lets start batching baby
                 let threadAllocation = allocateThreads(ns, threadsAvailable, minThreads, targetServer);
                 let threads = 1;
